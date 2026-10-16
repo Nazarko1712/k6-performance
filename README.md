@@ -211,6 +211,44 @@ One trap documented there is worth repeating here: `p(99)` is **not** in k6's
 default `summaryTrendStats`, so asking for it in a report without adding it to
 the config prints `0ms` — a number that looks like an excellent result.
 
+### Pre-push hook
+
+```bash
+npm install    # wires the hook up via npm's `prepare` lifecycle script
+```
+
+`.husky/pre-push` runs the same checks CI runs, before the push leaves the
+machine. If any of them exits non-zero, **the push is aborted and nothing
+reaches the remote**:
+
+```
+  push blocked — ESLint found problems
+  fix:     npm run lint:fix
+  bypass:  git push --no-verify
+```
+
+Three deliberate choices in it:
+
+**It does not run the suite.** Lint, formatting and types are fast, offline and
+deterministic — the whole hook finishes in about four seconds. The tests need a
+browser and/or somebody else's demo API, so a hook that ran them would add a
+minute to every push and would block whenever that server is asleep. Those
+belong in CI, where a retry is free.
+
+**It never fixes anything.** The hook calls the reporting variants, never
+`--fix` or `--write`. A hook that rewrites files during `git push` pushes a
+version you never reviewed and leaves the corrected files uncommitted in your
+working tree. Being told what to run is better than being silently corrected.
+
+**It is a pre-push hook, not pre-commit.** Commits are cheap and often
+intermediate; blocking each one trains you to reach for `--no-verify` until the
+hook is decoration. One check before the branch leaves the machine catches
+exactly what CI would catch, without getting in the way of committing
+work-in-progress.
+
+`git push --no-verify` skips it entirely and lets CI be the judge — a legitimate
+choice for a branch that is not finished.
+
 ### Where this runs in CI
 
 Linting and formatting are their **own job**, not steps inside the test job.

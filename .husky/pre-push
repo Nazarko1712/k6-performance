@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# pre-push: run the same checks CI runs, before the push leaves the machine.
+#
+# Scope is deliberate. This runs lint, formatting and types — fast, offline and
+# deterministic. It does NOT run the test suite: this suite needs a browser
+# and/or a public demo API, so a hook that ran it would add a minute to every
+# push and would block on somebody else's server being up. Those belong in CI,
+# where a retry is free.
+#
+# The checks are the REPORTING variants, never --fix or --write. A hook that
+# rewrites files during `git push` pushes a version you never saw, and leaves
+# the corrected files uncommitted in your working tree. Being told what to run
+# is better than being silently corrected.
+#
+# Escape hatch: `git push --no-verify` skips this entirely and lets CI be the
+# judge. That is a legitimate choice for a work-in-progress branch.
+
+set -e
+
+fail() {
+    echo ""
+    echo "  push blocked — $1"
+    echo "  fix:     $2"
+    echo "  bypass:  git push --no-verify"
+    echo ""
+    exit 1
+}
+
+echo "pre-push: eslint"
+npm run --silent lint || fail "ESLint found problems" "npm run lint:fix"
+
+echo "pre-push: prettier"
+npm run --silent format:check || fail "formatting differs from .prettierrc.json" "npm run format"
+
+echo "pre-push: ok"
