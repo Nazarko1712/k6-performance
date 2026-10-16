@@ -1,0 +1,37 @@
+name: performance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install k6
+        run: |
+          curl -sL https://github.com/grafana/k6/releases/latest/download/k6-v1.3.0-linux-amd64.tar.gz \
+            | tar xz --strip-components=1 -C /usr/local/bin --wildcards '*/k6' || \
+          (sudo gpg -k && \
+           sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69 && \
+           echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list && \
+           sudo apt-get update && sudo apt-get install -y k6)
+          k6 version
+
+      # No npm install: there are no dependencies.
+      - name: Smoke
+        run: npm run test:smoke
+
+      # Thresholds make k6 exit non-zero on a breach, so a regression fails the
+      # job rather than printing numbers nobody reads.
+      - name: Load
+        run: npm run test:load
