@@ -1,0 +1,20 @@
+{
+  "name": "k6-performance",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "k6 performance suite — smoke, load and stress profiles against a self-hosted zero-dependency target, because load testing a public API is abuse of someone else's resources",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "server": "node server/app.js",
+    "test": "npm run test:smoke && npm run test:load",
+    "test:smoke": "node scripts/with-server.mjs tests/smoke.js",
+    "test:load": "node scripts/with-server.mjs tests/load.js",
+    "test:stress": "node scripts/with-server.mjs tests/stress.js",
+    "test:soak": "node scripts/with-server.mjs tests/load.js --duration 5m --vus 20",
+    "test:json": "node scripts/with-server.mjs tests/load.js --out json=results.json"
+  },
+  "devDependencies": {}
+}
