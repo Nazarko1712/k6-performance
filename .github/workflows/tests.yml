@@ -45,20 +45,19 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # Grafana's official apt repository. Pinning a release filename instead
-      # breaks on every k6 release — which is how this workflow was wrong on
-      # the first attempt.
+      # Grafana's official action rather than the apt repository.
+      #
+      # The apt route is the one Grafana documents, and it does not work on a
+      # GitHub runner: `gpg --keyserver` needs dirmngr, which is absent from
+      # that image, so the key import fails with "can't connect to the dirmngr"
+      # before apt is ever reached. The action resolves the latest release and
+      # puts the binary on PATH with no key server involved — which is also why
+      # it does not break on every k6 release the way a pinned release filename
+      # would.
       - name: Install k6
-        run: |
-          sudo gpg --no-default-keyring \
-            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
-            --keyserver hkp://keyserver.ubuntu.com:80 \
-            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
-            | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update
-          sudo apt-get install -y k6
-          k6 version
+        uses: grafana/setup-k6-action@v1
+
+      - run: k6 version
 
       # No npm install: there are no dependencies.
       - name: Smoke
