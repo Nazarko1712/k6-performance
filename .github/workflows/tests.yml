@@ -17,14 +17,19 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      # Grafana's official apt repository. Pinning a release filename instead
+      # breaks on every k6 release — which is how this workflow was wrong on
+      # the first attempt.
       - name: Install k6
         run: |
-          curl -sL https://github.com/grafana/k6/releases/latest/download/k6-v1.3.0-linux-amd64.tar.gz \
-            | tar xz --strip-components=1 -C /usr/local/bin --wildcards '*/k6' || \
-          (sudo gpg -k && \
-           sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69 && \
-           echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list && \
-           sudo apt-get update && sudo apt-get install -y k6)
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
           k6 version
 
       # No npm install: there are no dependencies.
@@ -35,3 +40,9 @@ jobs:
       # job rather than printing numbers nobody reads.
       - name: Load
         run: npm run test:load
+
+      # Stress is exploratory: a breach there is information, not a defect.
+      # It runs on demand and never blocks a merge.
+      - name: Stress
+        if: github.event_name == 'workflow_dispatch'
+        run: npm run test:stress
