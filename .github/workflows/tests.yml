@@ -7,6 +7,34 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Lint and formatting are their OWN job, not steps inside the test job.
+  #
+  # They need no browser, no network and no secrets, and they finish in
+  # seconds. As a separate job they run concurrently with the suite, so a
+  # style failure does not wait behind a ten-minute browser run and a test
+  # failure is not hidden behind a style failure. Both verdicts arrive on
+  # their own.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      # `--check`, never `--write`: CI reports, it does not silently rewrite
+      # the branch it was asked to verify.
+      - name: Prettier
+        run: npm run format:check
+
   performance:
     runs-on: ubuntu-latest
     timeout-minutes: 15

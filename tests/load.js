@@ -21,7 +21,7 @@ export const options = {
     stages: [
         { duration: '10s', target: 20 }, // ramp up
         { duration: '20s', target: 20 }, // hold — the measurement window
-        { duration: '5s', target: 0 },   // ramp down
+        { duration: '5s', target: 0 }, // ramp down
     ],
 
     thresholds: {

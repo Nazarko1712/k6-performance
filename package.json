@@ -14,7 +14,17 @@
     "test:load": "node scripts/with-server.mjs tests/load.js",
     "test:stress": "node scripts/with-server.mjs tests/stress.js",
     "test:soak": "node scripts/with-server.mjs tests/load.js --duration 5m --vus 20",
-    "test:json": "node scripts/with-server.mjs tests/load.js --out json=results.json"
+    "test:json": "node scripts/with-server.mjs tests/load.js --out json=results.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10"
+  }
 }

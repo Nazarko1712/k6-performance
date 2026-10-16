@@ -5,17 +5,17 @@ against a **self-hosted target** that ships with the repository.
 
 Load testing someone else's public API is abuse of their resources, so this one
 brings its own: a zero-dependency `node:http` app whose handlers deliberately
-have *different* performance shapes, so the thresholds have something real to
+have _different_ performance shapes, so the thresholds have something real to
 measure.
 
 ## Prerequisites
 
-| Requirement | Notes |
-|---|---|
-| **k6** | [install guide](https://grafana.com/docs/k6/latest/set-up/install-k6/) — `brew install k6`, or download the binary |
-| **Node.js 20.11+** | runs the target app and the wrapper script |
-| **Nothing else** | `devDependencies` is empty; no `npm install` needed |
-| **Port 3100 free** | override with `PORT=4100` |
+| Requirement        | Notes                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| **k6**             | [install guide](https://grafana.com/docs/k6/latest/set-up/install-k6/) — `brew install k6`, or download the binary |
+| **Node.js 20.11+** | runs the target app and the wrapper script                                                                         |
+| **Nothing else**   | `devDependencies` is empty; no `npm install` needed                                                                |
+| **Port 3100 free** | override with `PORT=4100`                                                                                          |
 
 ## Running
 
@@ -45,11 +45,11 @@ appear as a failure rate that has nothing to do with the system under test.
 
 ## The three profiles
 
-| | Question | Verdict | Thresholds |
-|---|---|---|---|
-| **smoke** | is it up and correct? | pass / fail | tight |
-| **load** | does it meet its budget at expected traffic? | pass / fail | realistic |
-| **stress** | where does it stop meeting it, and how does it fail? | exploratory | loose, about *degrading well* |
+|            | Question                                             | Verdict     | Thresholds                    |
+| ---------- | ---------------------------------------------------- | ----------- | ----------------------------- |
+| **smoke**  | is it up and correct?                                | pass / fail | tight                         |
+| **load**   | does it meet its budget at expected traffic?         | pass / fail | realistic                     |
+| **stress** | where does it stop meeting it, and how does it fail? | exploratory | loose, about _degrading well_ |
 
 A **stress test that passes every threshold has not found the limit** and
 therefore has not done its job. Its thresholds assert that the service degrades
@@ -116,8 +116,8 @@ http.get(`${BASE}/products/999999`, {
 });
 ```
 
-Declaring the expected status separates *"the request went wrong"* from *"the
-server correctly said no"*. The same applies to the 429s in the load and stress
+Declaring the expected status separates _"the request went wrong"_ from _"the
+server correctly said no"_. The same applies to the 429s in the load and stress
 profiles: a rate limiter answering 429 is working, not failing.
 
 ### `p(99)` is not in the default summary statistics
@@ -137,7 +137,7 @@ important choice.
 
 With plain VUs, a slowing server automatically receives **fewer** requests —
 each virtual user waits longer for its response, so the offered load reduces
-itself and the breaking point is never reached. Fixing the *request rate*
+itself and the breaking point is never reached. Fixing the _request rate_
 instead keeps the pressure constant while the server degrades, which is the
 only way to observe what happens at the limit.
 
@@ -152,14 +152,14 @@ stress profile wearing a load profile's name.
 `server/app.js` — plain `node:http`, no dependencies. Handlers are deliberately
 not uniformly fast:
 
-| Route | Shape | Why |
-|---|---|---|
-| `/health` | constant, trivial | baseline |
-| `/products` | fast, cached-like | the happy path |
-| `/products/:id` | small variable cost | realistic jitter |
-| `/search` | **cost grows with query length** | the unindexed-scan shape |
-| `/checkout` | slow, rate-limited at 40/s | the bottleneck |
-| `/flaky` | fails ~10% of the time | something for an error-rate threshold to catch |
+| Route           | Shape                            | Why                                            |
+| --------------- | -------------------------------- | ---------------------------------------------- |
+| `/health`       | constant, trivial                | baseline                                       |
+| `/products`     | fast, cached-like                | the happy path                                 |
+| `/products/:id` | small variable cost              | realistic jitter                               |
+| `/search`       | **cost grows with query length** | the unindexed-scan shape                       |
+| `/checkout`     | slow, rate-limited at 40/s       | the bottleneck                                 |
+| `/flaky`        | fails ~10% of the time           | something for an error-rate threshold to catch |
 
 `/search` is the interesting one: its latency scales with the search term, which
 is what a search endpoint looks like before anyone measures it. A load test
@@ -174,3 +174,50 @@ that only exercises `/products` would never see it.
   do. Beyond that you need k6 Cloud or multiple runners, and the client becomes
   the bottleneck long before the server.
 - **No production runs.** Every profile here targets localhost on purpose.
+
+## Linting and reports
+
+```bash
+npm run lint          # ESLint 9, flat config
+npm run lint:fix
+npm run format        # Prettier, writes
+npm run format:check  # Prettier, reports (this is what CI runs)
+```
+
+k6 scripts are the awkward case: they are JavaScript, but they do not run on
+Node. They run on k6's own **goja** runtime, which supplies `__VU`, `__ITER` and
+`open()` as globals and resolves `k6/http` from inside the binary rather than
+from `node_modules`. Linting them with Node globals produces a page of false
+`no-undef` errors, so the config separates the two environments:
+
+| Files                 | Environment                                                         |
+| --------------------- | ------------------------------------------------------------------- |
+| `tests/`, `lib/`      | the k6 runtime — k6 globals, no Node globals                        |
+| `server/`, `scripts/` | ordinary Node — the local target app and the wrapper that starts it |
+
+`no-undef` is the rule that earns its keep. **k6 has no `setTimeout` and no
+`fetch`**; writing either is a runtime error inside a load test, which is the
+worst place to find out — the failure arrives as a wall of identical iteration
+errors rather than one clear message.
+
+### Reports
+
+`handleSummary` in `lib/` writes the run summary, and the thresholds are the
+report that matters: a threshold breach is a non-zero exit code, so the load
+test is a pass/fail gate rather than a graph somebody has to interpret. See
+**Why thresholds are the whole point** above.
+
+One trap documented there is worth repeating here: `p(99)` is **not** in k6's
+default `summaryTrendStats`, so asking for it in a report without adding it to
+the config prints `0ms` — a number that looks like an excellent result.
+
+### Where this runs in CI
+
+Linting and formatting are their **own job**, not steps inside the test job.
+They need no browser, no network and no secrets, and they finish in seconds, so
+as a separate job they run concurrently with the suite: a formatting failure
+does not wait behind a long test run, and a real test failure is not hidden
+behind a formatting failure. Both verdicts arrive on their own.
+
+CI runs the `--check` variants, never the formatter itself. A pipeline reports
+on the branch it was asked to verify; it does not rewrite it.

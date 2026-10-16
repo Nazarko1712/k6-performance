@@ -68,14 +68,10 @@ export const options = {
 const BASE = __ENV.BASE_URL || 'http://127.0.0.1:3100';
 
 export default function () {
-    const res = http.post(
-        `${BASE}/checkout`,
-        JSON.stringify({ items: [{ id: '1', qty: 1 }] }),
-        {
-            headers: { 'Content-Type': 'application/json' },
-            responseCallback: http.expectedStatuses({ min: 200, max: 299 }, 429),
-        },
-    );
+    const res = http.post(`${BASE}/checkout`, JSON.stringify({ items: [{ id: '1', qty: 1 }] }), {
+        headers: { 'Content-Type': 'application/json' },
+        responseCallback: http.expectedStatuses({ min: 200, max: 299 }, 429),
+    });
 
     checkoutLatency.add(res.timings.duration);
 
